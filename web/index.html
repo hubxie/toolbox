@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工具箱 · 个人工作台</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <meta name="description" content="处理 JSON 数据的个人工作台：自动修复、格式化折叠、JSONPath 筛选、历史对比，数据全部保存在浏览器本地。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1>工具箱</h1>
+    </div>
+    <p class="today-date" id="todayDate"></p>
+  </header>
+
+  <main class="layout">
+    <section class="work" aria-label="工作台">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="json" role="tab" aria-selected="true">JSON 工作台</button>
+        <button class="tab" data-tab="regex" role="tab" aria-selected="false">正则工具</button>
+        <button class="tab" data-tab="qr" role="tab" aria-selected="false">二维码识别</button>
+        <button class="tab" data-tab="tools" role="tab" aria-selected="false">小工具</button>
+      </div>
+
+      <div id="panelJson">
+      <div class="pathbar">
+        <input id="pathInput" type="text" spellcheck="false" autocomplete="off"
+               placeholder="JSONPath 筛选，例如  $.data.list[0].name  或  $..id">
+        <span id="pathMsg" class="path-msg" aria-live="polite"></span>
+      </div>
+
+      <div class="editor">
+        <div class="editor-head">
+          <span class="editor-title">JSON 输入</span>
+          <div class="editor-actions">
+            <button id="btnFormat" class="btn primary">格式化</button>
+            <button id="btnClear" class="btn ghost">清空</button>
+          </div>
+        </div>
+        <textarea id="input" spellcheck="false"
+          placeholder='粘贴 JSON。支持带转义的字符串、缺少数值或括号的内容，会自动修复并用绿色标记补充部分。&#10;例如：{"a":1,"b":[1,2,'></textarea>
+        <div class="toolbar">
+          <label class="opt"><input type="checkbox" id="optExpand" checked>自动展开内嵌 JSON 字符串</label>
+          <span id="status" class="status" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div class="viewer">
+        <div class="viewer-head">
+          <span class="editor-title">格式化结果</span>
+          <div class="viewer-actions">
+            <span class="legend" title="浅绿底虚线：修复时自动补充的内容，不是原始数据"><i class="chip syn"></i>自动补充</span>
+            <button class="btn tiny" data-fold="expand">全部展开</button>
+            <button class="btn tiny" data-fold="collapse">全部折叠</button>
+            <button id="btnCopy" class="btn tiny">复制</button>
+          </div>
+        </div>
+        <div id="tree" class="tree" aria-live="polite"></div>
+      </div>
+      </div>
+
+      <div id="panelRegex" hidden>
+        <div class="editor">
+          <div class="editor-head">
+            <span class="editor-title">正则表达式</span>
+            <div class="editor-actions re-flags" role="group" aria-label="标志位">
+              <label class="opt"><input type="checkbox" data-flag="g" checked>g 全局</label>
+              <label class="opt"><input type="checkbox" data-flag="i">i 忽略大小写</label>
+              <label class="opt"><input type="checkbox" data-flag="m">m 多行</label>
+              <label class="opt"><input type="checkbox" data-flag="s">s 单行</label>
+              <label class="opt"><input type="checkbox" data-flag="u">u Unicode</label>
+            </div>
+          </div>
+          <input id="rePattern" class="re-input" type="text" spellcheck="false" autocomplete="off"
+                 placeholder='例如  \d{3}-\d{4}   或  "(?<key>\w+)"\s*:\s*"([^"]*)"'>
+          <div class="toolbar"><span id="reStatus" class="status" aria-live="polite"></span></div>
+        </div>
+
+        <div class="editor">
+          <div class="editor-head">
+            <span class="editor-title">测试文本</span>
+            <div class="editor-actions"><button id="btnReClear" class="btn ghost tiny">清空</button></div>
+          </div>
+          <textarea id="reText" spellcheck="false" placeholder="粘贴要验证或提取的文本"></textarea>
+        </div>
+
+        <div class="viewer">
+          <div class="viewer-head">
+            <span class="editor-title">提取结果 <span id="reCount" class="path-msg"></span></span>
+            <div class="viewer-actions"><button id="btnReCopyAll" class="btn tiny">复制全部匹配</button></div>
+          </div>
+          <div id="rePreview" class="re-preview" aria-live="polite"></div>
+          <div id="reResult" class="re-result"></div>
+        </div>
+      </div>
+
+      <div id="panelQr" hidden>
+        <div class="editor">
+          <div class="editor-head">
+            <span class="editor-title">二维码识别</span>
+            <div class="editor-actions">
+              <label class="btn primary file-btn">选择图片<input id="qrFile" type="file" accept="image/*" hidden></label>
+              <button id="btnQrClear" class="btn ghost tiny">清空</button>
+            </div>
+          </div>
+          <div id="qrDrop" class="qr-drop" tabindex="0">拖拽图片到这里，或在切到此页后直接 Ctrl+V 粘贴截图（无需登录，图片只在本地解码，不上传）</div>
+          <div class="toolbar"><span id="qrStatus" class="status" aria-live="polite"></span></div>
+        </div>
+        <div class="viewer">
+          <div class="viewer-head">
+            <span class="editor-title">识别结果</span>
+            <div class="viewer-actions"><button id="btnQrCopy" class="btn tiny">复制内容</button></div>
+          </div>
+          <div id="qrImgBox" class="qr-imgbox" hidden><img id="qrImg" alt="待识别图片预览"></div>
+          <div id="qrText" class="qr-text" title="点击复制"></div>
+        </div>
+
+        <div class="editor">
+          <div class="editor-head">
+            <span class="editor-title">生成二维码</span>
+            <div class="editor-actions re-flags">
+              <label class="opt">容错
+                <select id="qrGenEc">
+                  <option value="L">L 7%</option>
+                  <option value="M" selected>M 15%</option>
+                  <option value="Q">Q 25%</option>
+                  <option value="H">H 30%</option>
+                </select>
+              </label>
+              <label class="opt">尺寸
+                <select id="qrGenSize">
+                  <option value="s">小</option>
+                  <option value="m" selected>中</option>
+                  <option value="l">大</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <textarea id="qrGenText" class="qr-gen-text" spellcheck="false" placeholder="输入要编码的文本或链接，输入即生成"></textarea>
+          <div class="toolbar"><span id="qrGenStatus" class="status" aria-live="polite"></span></div>
+        </div>
+        <div class="viewer">
+          <div class="viewer-head">
+            <span class="editor-title">生成预览</span>
+            <div class="viewer-actions">
+              <button id="btnQrDownload" class="btn tiny">下载 PNG</button>
+              <button id="btnQrCopyImg" class="btn tiny">复制图片</button>
+            </div>
+          </div>
+          <div id="qrGenBox" class="qr-genbox"><span class="history-empty">输入内容后自动生成</span></div>
+        </div>
+      </div>
+
+      <div id="panelTools" hidden>
+        <div class="tools-grid">
+          <section class="card timer-card">
+            <h2 class="card-title">计时器</h2>
+            <div class="timer-display num" id="timerDisplay">00:00:00</div>
+            <div class="timer-actions">
+              <button id="btnTimerToggle" class="btn primary">开始</button>
+              <button id="btnTimerReset" class="btn ghost">归零</button>
+            </div>
+          </section>
+
+          <section class="card ts-card">
+            <h2 class="card-title">时间戳 <span class="card-sub">点数值即复制</span></h2>
+            <div class="ts-now">
+              <div class="ts-row"><span class="ts-label">当前时间</span><span id="tsNowStr" class="ts-val num clickable" data-ts="now"></span></div>
+              <div class="ts-row"><span class="ts-label">秒</span><span id="tsSec" class="ts-val num clickable" data-ts="sec"></span></div>
+              <div class="ts-row"><span class="ts-label">毫秒</span><span id="tsMs" class="ts-val num clickable" data-ts="ms"></span></div>
+            </div>
+            <div class="ts-conv">
+              <div class="ts-sec-title">时间 → 时间戳</div>
+              <div class="ts-conv-input">
+                <input id="tsPick" type="datetime-local" step="1">
+                <button id="btnTsPickNow" class="btn tiny" title="填入此刻">此刻</button>
+              </div>
+              <div class="ts-row"><span class="ts-label">秒</span><span id="tsPickSec" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">毫秒</span><span id="tsPickMs" class="ts-val num"></span></div>
+            </div>
+            <div class="ts-conv">
+              <div class="ts-sec-title">时间戳 → 时间</div>
+              <div class="ts-conv-input">
+                <input id="tsInput" type="text" inputmode="numeric" spellcheck="false" placeholder="输入时间戳，自动识别 10 位秒 / 13 位毫秒">
+                <button id="btnTsNow" class="btn tiny" title="填入当前秒级时间戳">取当前</button>
+              </div>
+              <div class="ts-row"><span class="ts-label">本地时间</span><span id="tsLocal" class="ts-val num" data-ts="local"></span></div>
+              <div class="ts-row"><span class="ts-label">ISO 格式</span><span id="tsIso" class="ts-val num" data-ts="iso"></span></div>
+            </div>
+          </section>
+
+          <section class="card sf-card">
+            <h2 class="card-title">雪花 ID <span class="card-sub">点数值即复制</span></h2>
+            <div class="ts-conv">
+              <div class="ts-sec-title">ID → 信息</div>
+              <div class="ts-conv-input">
+                <input id="sfIdInput" type="text" inputmode="numeric" spellcheck="false" placeholder="输入雪花 ID；也可直接粘贴日志文本，自动提取其中所有 ID">
+                <button id="btnSfParse" class="btn tiny">解析</button>
+              </div>
+              <div class="ts-row"><span class="ts-label">生成时间</span><span id="sfTime" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">毫秒时间戳</span><span id="sfTs" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">数据中心位</span><span id="sfDcOut" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">机器位</span><span id="sfWorkerOut" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">序列号</span><span id="sfSeqOut" class="ts-val num"></span></div>
+              <div class="ts-row"><span class="ts-label">本次使用纪元</span><span id="sfEpochOut" class="ts-val num"></span></div>
+              <div id="sfCalib" hidden>
+                <div class="ts-conv-input">
+                  <input id="sfCalibTime" type="datetime-local" step="1">
+                  <button id="btnSfCalib" class="btn tiny">校准</button>
+                </div>
+                <div class="sf-note">若上面时间与你系统不符，填该 ID 的真实生成时间，自动反推起始时间戳</div>
+              </div>
+              <div id="sfBatch" class="sf-batch" hidden></div>
+            </div>
+            <div class="ts-conv">
+              <div class="ts-sec-title">生成</div>
+              <div class="sf-params">
+                <label class="sf-param">起始时间戳<input id="sfEpoch" type="text" inputmode="numeric" spellcheck="false"></label>
+                <label class="sf-param">数据中心<input id="sfDc" type="text" inputmode="numeric" spellcheck="false" maxlength="2"></label>
+                <label class="sf-param">机器位<input id="sfWorker" type="text" inputmode="numeric" spellcheck="false" maxlength="2"></label>
+              </div>
+              <button id="btnSfGen" class="btn primary" style="width:100%">生成 5 个</button>
+              <div id="sfList" class="sf-list"></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="统计与历史">
+      <section class="card stats-card">
+        <h2 class="card-title">今日统计</h2>
+        <ul class="stats">
+          <li><span class="stat-label">格式化次数</span><span class="stat-value num" id="statFormats">0</span></li>
+          <li><span class="stat-label">自动补充处数</span><span class="stat-value num" id="statRepairs">0</span></li>
+          <li><span class="stat-label">今日计时</span><span class="stat-value num" id="statTimer">00:00:00</span></li>
+          <li><span class="stat-label">历史总条数</span><span class="stat-value num" id="statHistory">0</span></li>
+        </ul>
+      </section>
+
+      <section class="card history-card">
+        <h2 class="card-title">
+          历史
+          <span class="card-sub">双击回填 · 勾选两项对比</span>
+        </h2>
+        <div id="historyList" class="history-list"></div>
+        <div class="history-actions">
+          <button id="btnCompare" class="btn primary" disabled>对比所选</button>
+          <button id="btnClearHistory" class="btn ghost">清空历史</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <div id="diffModal" class="modal" hidden>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>历史对比</h2>
+        <div class="modal-legend">
+          <span><i class="chip del"></i>左侧独有</span>
+          <span><i class="chip add"></i>右侧新增</span>
+          <span id="diffSummary"></span>
+        </div>
+        <button id="btnDiffClose" class="btn ghost">关闭</button>
+      </div>
+      <div class="diff-cols">
+        <span id="diffLabelA" class="diff-label"></span>
+        <span id="diffLabelB" class="diff-label"></span>
+      </div>
+      <div id="diffBody" class="diff-body"></div>
+    </div>
+  </div>
+
+  <script src="jsoncore.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
